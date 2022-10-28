@@ -9,13 +9,13 @@ class eEntry{
   int vid;
   int did;
   int fee;
-  int eLevel = -1;
+  int eLevel = 0;
   bool operator< (const eEntry &other) const {
     return vid < other.vid;
   }
   friend std::ostream& operator << (std::ostream& os, const eEntry& entry)
   {
-    os << entry.vid << " " << entry.did << " " << entry.fee << "\n";
+    os << entry.vid << " " << entry.did << " " << entry.fee << " " << entry.eLevel << "\n";
     return os;
   }
 };
@@ -51,6 +51,39 @@ class dEntry{
   }
 };
 
+class evEntry{
+  public:
+  int vid;
+  int did;
+  int fee;
+  int eLevel = 0;
+  bool operator< (const evEntry &other) const {
+    return did < other.did;
+  }
+  friend std::ostream& operator << (std::ostream& os, const evEntry& entry)
+  {
+    os << entry.vid << " " << entry.did << " " << entry.fee << " " << entry.eLevel << "\n";
+    return os;
+  }
+};
+
+class allEntry{
+  public:
+  int vid;
+  int did;
+  int fee;
+  int eLevel = 0;
+  int age = 0;
+  bool operator< (const allEntry &other) const {
+    return eLevel < other.eLevel;
+  }
+  friend std::ostream& operator << (std::ostream& os, const allEntry& entry)
+  {
+    os << entry.vid << " " << entry.did << " " << entry.fee << " " << entry.eLevel << " " << entry.age << "\n";
+    return os;
+  }
+};
+
 std::istream& operator>>(std::istream& is, eEntry& entry){
   return is >> entry.vid >> entry.did >> entry.fee;
 }
@@ -61,6 +94,14 @@ std::istream& operator>>(std::istream& is, vEntry& entry){
 
 std::istream& operator>>(std::istream& is, dEntry& entry){
   return is >> entry.did >> entry.age;
+}
+
+std::istream& operator>>(std::istream& is, evEntry& entry){
+  return is >> entry.vid >> entry.did >> entry.fee >> entry.eLevel;
+}
+
+std::istream& operator>>(std::istream& is, allEntry& entry){
+  return is >> entry.vid >> entry.did >> entry.fee >> entry.eLevel;
 }
 
 void sortEntriesE() {
@@ -100,7 +141,7 @@ std::vector<vEntry> sortEntriesV(){
   return entriesV;
 }
 
-void sortEntriesD(){
+std::vector<dEntry> sortEntriesD(){
   std::ifstream inputFileD("UnsortedFiles/DFile");
   std::vector<dEntry> entriesD;
   dEntry entryD;
@@ -115,27 +156,82 @@ void sortEntriesD(){
   std::ofstream outputFileD("SortedFiles/DSorted");
   for (const auto &e : entriesD) outputFileD << e;
   outputFileD.close(); 
-  entriesD.clear();
+  return entriesD;
 }
 
 int main() {
   sortEntriesE();
-  sortEntriesD();
   std::vector<vEntry> vEntries = sortEntriesV();
+
+  //SORT E AND V
   std::ifstream inputFileE("SortedFiles/ESorted");
-  std::ofstream outputFileEandV("SortedFiles/EandVSorted");
-  eEntry entryE;
+  std::vector<evEntry> evEntries;
+  evEntry entryEV;
   int iterator = 0;
-  while (inputFileE >> entryE) {
-    while (entryE.vid >= vEntries[iterator].vid){
-      if (entryE.vid > vEntries[iterator].vid){
+  while (inputFileE >> entryEV) {
+    while (entryEV.vid >= vEntries[iterator].vid){
+      if (entryEV.vid > vEntries[iterator].vid){
         iterator = iterator + 1;
       }
-      else if (entryE.vid = vEntries[iterator].vid) {
-        entryE.eLevel = vEntries[iterator].eLevel;
-        outputFileEandV << entryE;
+      else if (entryEV.vid == vEntries[iterator].vid) {
+        entryEV.eLevel = vEntries[iterator].eLevel;
+        evEntries.push_back(entryEV);
         break;
       } 
     }
   }
+  //Sort EV by DID
+  std::sort(evEntries.begin(), evEntries.end());
+  std::ofstream outputFileEandV("SortedFiles/EandVSorted");
+  for (const auto &e : evEntries) outputFileEandV << e;
+  evEntries.clear(); //Not needed
+  inputFileE.close();
+  outputFileEandV.close();
+  std::ifstream inputFileEandV("SortedFiles/EandVSorted");
+  std::vector<dEntry> dEntries = sortEntriesD();
+  std::vector<allEntry> allEntries;
+  allEntry entryALL;
+  iterator = 0;
+  while (inputFileEandV >> entryALL) {
+    while (entryALL.did >= dEntries[iterator].did){
+      if (entryALL.did > dEntries[iterator].did){
+        iterator = iterator + 1;
+      }
+      else if (entryALL.did == dEntries[iterator].did) {
+        entryALL.age = dEntries[iterator].age;
+        allEntries.push_back(entryALL);
+        break;
+      } 
+    }
+  }
+  dEntries.clear();  //Not needed anymore
+  //Sort allEntries by eLevel
+  std::sort(allEntries.begin(), allEntries.end());
+  
+  //Printing the results
+  int initialE = allEntries[0].eLevel;
+  int count = 0;
+  double avgXFee = 0;
+  double avgDAge = 0;
+  std::cout << "eLevel Count AVG(X.Fee) AVG(D.Age)" << "\n";
+  std::cout << "----------------------------------" << "\n";
+  for (const auto &e : allEntries) {
+    if (initialE == e.eLevel) {
+      count++;
+      avgXFee = avgXFee + e.fee;
+      avgDAge = avgDAge + e.age;
+    } else {
+      initialE = e.eLevel;
+      avgXFee = avgXFee/count;
+      avgDAge = avgDAge/count;
+      std::cout << initialE << " " << count << " " << avgXFee << " " << avgDAge << "\n";
+      count = 1;
+      avgXFee = e.fee;
+      avgDAge = e.age;
+    }
+  }
+  avgXFee = avgXFee/count;
+  avgDAge = avgDAge/count;
+  std::cout << initialE << " " << count << " " << avgXFee << " " << avgDAge << "\n";
+  allEntries.clear();
 }
